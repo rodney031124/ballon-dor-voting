@@ -4,6 +4,26 @@ import { functions } from "./firebase";
 import { nominees } from "./nominees";
 import { SiteFooter, Wordmark } from "./SiteChrome";
 
+const useFirebaseFunctions = import.meta.env.DEV;
+
+async function requestAdminApi(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    credentials: "same-origin",
+    headers: {
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...options.headers,
+    },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.error || "The admin service could not complete the request.");
+    error.status = response.status;
+    throw error;
+  }
+  return data;
+}
+
 export function AdminPage() {
   const [adminState, setAdminState] = useState("checking");
   const [error, setError] = useState("");
@@ -36,7 +56,9 @@ export function AdminPage() {
       if (requestInFlight) return;
       requestInFlight = true;
       try {
-        const { data } = await httpsCallable(functions, "getAdminResults")({ sessionToken });
+        const data = useFirebaseFunctions
+          ? (await httpsCallable(functions, "getAdminResults")({ sessionToken })).data
+          : await requestAdminApi("/api/admin/results");
         if (!active) return;
         const counts = new Map(data.results.map((result) => [result.id, result.votes]));
         setRows(nominees.map((nominee, index) => ({
@@ -49,7 +71,7 @@ export function AdminPage() {
       } catch (cause) {
         if (!active) return;
         setLive(false);
-        if (cause.code === "functions/unauthenticated") {
+        if (cause.status === 401 || cause.code === "functions/unauthenticated") {
           setSessionToken("");
           setError("Your admin session expired. Sign in again.");
         } else {
@@ -79,11 +101,19 @@ export function AdminPage() {
     setError("");
     setSigningIn(true);
     try {
-      const { data } = await httpsCallable(functions, "authenticateAdmin")({ password });
-      if (typeof data.sessionToken !== "string" || data.sessionToken.length === 0) {
-        throw new Error("The server returned an invalid sign-in response.");
+      if (useFirebaseFunctions) {
+        const { data } = await httpsCallable(functions, "authenticateAdmin")({ password });
+        if (typeof data.sessionToken !== "string" || data.sessionToken.length === 0) {
+          throw new Error("The server returned an invalid sign-in response.");
+        }
+        setSessionToken(data.sessionToken);
+      } else {
+        await requestAdminApi("/api/admin/login", {
+          method: "POST",
+          body: JSON.stringify({ password }),
+        });
+        setSessionToken("authenticated");
       }
-      setSessionToken(data.sessionToken);
       setPassword("");
     } catch (cause) {
       setError(`Admin sign-in failed: ${cause.message}`);
@@ -92,8 +122,15 @@ export function AdminPage() {
     }
   }
 
-  function signOutAdmin() {
+  async function signOutAdmin() {
     setError("");
+    if (!useFirebaseFunctions) {
+      try {
+        await requestAdminApi("/api/admin/logout", { method: "POST" });
+      } catch (cause) {
+        setError(`Could not complete server sign-out: ${cause.message}`);
+      }
+    }
     setSessionToken("");
     setRows([]);
   }

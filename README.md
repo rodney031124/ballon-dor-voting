@@ -32,14 +32,10 @@ The React/Vite app is the only web application in this repository. Firebase Clou
 
 Students vote without a visible login. Firebase silently creates a persistent anonymous session for the browser. The admin dashboard uses a password verified by a callable Cloud Function; the password is stored as a Firebase Functions secret and is never embedded in the frontend.
 
-1. Set a unique random administrator password of at least 32 characters as a Firebase Functions secret:
+1. In production, set `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`, and `FIREBASE_SERVICE_ACCOUNT_B64` as **private Vercel Production environment variables**. `FIREBASE_SERVICE_ACCOUNT_B64` is the base64-encoded Firebase service-account JSON for this project. Never use a `VITE_` prefix for these server-only values or commit the service-account key.
 
-   ```powershell
-   firebase functions:secrets:set ADMIN_PASSWORD
-   ```
-
-   Enter the password at the CLI prompt. Vite environment files are not used by deployed Functions. Do not put the password in frontend variables, source files, or chat. For local emulator testing, copy `functions/.secret.local.example` to `functions/.secret.local` and replace the example value with a long random password.
-2. Open `/admin` and enter the password. The function checks it server-side and returns a short-lived HMAC-signed admin session, held only in browser memory. A callable function checks that session and returns aggregate totals; the browser is never granted direct results access. Failed sign-in attempts are limited per source IP. This avoids Firebase custom-token signing and does not require the service account Token Creator role.
+   `ADMIN_PASSWORD` must contain at least 32 characters. Generate a separate random value of at least 32 characters for `ADMIN_SESSION_SECRET`. The deployed Vercel API validates the password server-side, rate-limits attempts, and issues a short-lived HttpOnly session cookie. Results are read server-side; the browser is never granted direct results access.
+2. Open `/admin` and enter the administrator password. For local emulator development, copy `functions/.secret.local.example` to `functions/.secret.local` and use `npm start`; local development calls the Firebase Functions emulator.
 
 ## Run with Firebase emulators
 
@@ -61,12 +57,11 @@ Follow local setup steps 4–5. Emulator data is separate from production. To us
 
    Use the Web app config from the Firebase project. These `VITE_` values are public client configuration; do not add `ADMIN_PASSWORD`, session secrets, voter secrets, or service-account credentials to Vercel frontend variables. Leave `VITE_USE_FIREBASE_EMULATORS` unset for production.
 3. Before opening the deployed site, in Firebase Console enable Anonymous sign-in and add the Vercel production domain (for example, `your-project.vercel.app`) to Authentication's authorized domains. If App Check is enabled, register the Vercel domain with the configured provider too.
-4. Vercel deploys only the frontend. The Firebase project must separately have the `castVote`, `authenticateAdmin`, and `getAdminResults` Cloud Functions deployed, the Firestore rules deployed, and the `ADMIN_PASSWORD` Functions secret configured. Configure these once from a Firebase CLI account with access to the project:
+4. Vercel builds the React frontend and deploys the `api/admin/*` server endpoints. The production admin endpoints use the private Vercel variables described in **Admin access** and the Firebase service-account identity to read aggregate results. The voting endpoint remains a Firebase callable function; deploy it and the restrictive Firestore rules from a Firebase CLI account with project access:
 
    ```powershell
    firebase use school-ballon-d-or
-   firebase functions:secrets:set ADMIN_PASSWORD
-   firebase deploy --only firestore:rules,functions
+   firebase deploy --only firestore:rules,functions:castVote
    ```
 
 5. Trigger a new Vercel deployment after changing its environment variables. Test `/vote`, `/admin`, refresh/deep links, anonymous voting, and admin results on the Vercel URL. Do not cast test votes against production.
@@ -81,7 +76,7 @@ npm run build
 firebase deploy --only firestore:rules,functions,hosting
 ```
 
-Firebase Functions deployment requires the project to have billing enabled. Hosting serves `dist/` and rewrites page routes such as `/admin` to the React entry point. Callable functions run in `us-central1` with Firebase-managed Admin credentials; no downloaded service-account key or Token Creator role is needed. The admin password is read from the `ADMIN_PASSWORD` Functions secret. For production, enable Firestore TTL on the `adminLoginAttempts.expiresAt` field so expired rate-limit records are automatically removed.
+Firebase Functions deployment requires the project to have billing enabled. Hosting serves `dist/` and rewrites page routes such as `/admin` to the React entry point. Callable voting functions run in `us-central1` with Firebase-managed Admin credentials. For production, enable Firestore TTL on the `adminLoginAttempts.expiresAt` field so expired rate-limit records are automatically removed.
 
 ## Privacy and voting limits
 
