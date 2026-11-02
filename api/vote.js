@@ -28,12 +28,16 @@ module.exports = async function castVote(request, response) {
     return sendJson(response, 400, { error: "Choose a nominee from the official ballot." });
   }
 
+  let failureStage = "firebase-configuration";
   try {
     const serviceAccount = getFirebaseServiceAccount();
+    failureStage = "firestore-initialization";
     const db = getDb(serviceAccount);
+    failureStage = "auth-module-loading";
     const { getAuth } = require("firebase-admin/auth");
     const { FieldValue } = require("firebase-admin/firestore");
     let voter;
+    failureStage = "id-token-verification";
     try {
       voter = await getAuth().verifyIdToken(tokenMatch[1]);
     } catch (error) {
@@ -52,6 +56,7 @@ module.exports = async function castVote(request, response) {
 
     const deviceRef = db.collection("devices").doc(voter.uid);
     const resultRef = db.collection("results").doc(nomineeId);
+    failureStage = "vote-transaction";
     await db.runTransaction(async (transaction) => {
       const deviceSnapshot = await transaction.get(deviceRef);
       if (deviceSnapshot.exists) {
@@ -82,6 +87,9 @@ module.exports = async function castVote(request, response) {
       return sendJson(response, 409, { error: error.message });
     }
     console.error("Vote endpoint failed.", error);
-    return sendJson(response, 503, { error: "Your vote could not be saved. Please try again." });
+    return sendJson(response, 503, {
+      error: "Your vote could not be saved. Please try again.",
+      diagnostic: { stage: failureStage, code: error.code || error.name },
+    });
   }
 };
