@@ -152,7 +152,15 @@ function Ballot({ user, authError }) {
           },
           body: JSON.stringify({ nomineeId: selectedId }),
         });
-        const result = await response.json();
+        const responseBody = await response.text();
+        let result;
+        try {
+          result = JSON.parse(responseBody);
+        } catch {
+          throw new Error(
+            `Voting service returned an unexpected response (HTTP ${response.status}). Please try again.`,
+          );
+        }
         if (response.status === 409) {
           setStatus("voted");
           return;
