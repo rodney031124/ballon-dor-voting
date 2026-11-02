@@ -137,11 +137,36 @@ function Ballot({ user, authError }) {
     setSubmitting(true);
     setError("");
     try {
-      await httpsCallable(functions, "castVote")({ nomineeId: selectedId });
+      if (
+        import.meta.env.DEV
+        || import.meta.env.VITE_USE_FIREBASE_VOTE_FUNCTION === "true"
+      ) {
+        await httpsCallable(functions, "castVote")({ nomineeId: selectedId });
+      } else {
+        const idToken = await user.getIdToken();
+        const response = await fetch("/api/vote", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ nomineeId: selectedId }),
+        });
+        const result = await response.json();
+        if (response.status === 409) {
+          setStatus("voted");
+          return;
+        }
+        if (!response.ok) {
+          throw new Error(result.error || "The voting service is unavailable. Please try again.");
+        }
+      }
       setStatus("voted");
     } catch (cause) {
       if (cause.code === "functions/already-exists") {
         setStatus("voted");
+      } else if (cause.code === "functions/internal" || cause.code === "functions/unavailable") {
+        setError("The voting service is temporarily unavailable. Please try again.");
       } else {
         setError(`Your vote couldn't be submitted: ${cause.message}`);
       }

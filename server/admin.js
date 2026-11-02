@@ -29,17 +29,8 @@ const nomineeIds = [
   "zwivhuya-sbuda",
 ];
 
-function getConfig() {
-  const password = process.env.ADMIN_PASSWORD;
-  const sessionSecret = process.env.ADMIN_SESSION_SECRET;
+function getFirebaseServiceAccount() {
   const serviceAccountValue = process.env.FIREBASE_SERVICE_ACCOUNT_B64;
-
-  if (typeof password !== "string" || password.length < 32) {
-    throw new Error("Admin sign-in is not configured.");
-  }
-  if (typeof sessionSecret !== "string" || sessionSecret.length < 32) {
-    throw new Error("Admin sessions are not configured.");
-  }
   if (!serviceAccountValue) {
     throw new Error("Firebase server access is not configured.");
   }
@@ -60,7 +51,20 @@ function getConfig() {
     throw new Error("Firebase server access is misconfigured.");
   }
 
-  return { password, sessionSecret, serviceAccount };
+  return serviceAccount;
+}
+
+function getConfig() {
+  const password = process.env.ADMIN_PASSWORD;
+  const sessionSecret = process.env.ADMIN_SESSION_SECRET;
+  if (typeof password !== "string" || password.length < 32) {
+    throw new Error("Admin sign-in is not configured.");
+  }
+  if (typeof sessionSecret !== "string" || sessionSecret.length < 32) {
+    throw new Error("Admin sessions are not configured.");
+  }
+
+  return { password, sessionSecret, serviceAccount: getFirebaseServiceAccount() };
 }
 
 function getDb(serviceAccount) {
@@ -220,6 +224,7 @@ module.exports = {
   getClientIp,
   getConfig,
   getDb,
+  getFirebaseServiceAccount,
   isSameOrigin,
   isValidSession,
   nomineeIds,

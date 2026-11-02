@@ -1,8 +1,8 @@
 # School Ballon d'Or 2026 voting
 
-The voting app is a React/Vite site. It can be hosted on Vercel or Firebase Hosting. Firebase Anonymous Authentication gives each browser profile a persistent voting account. A callable Cloud Function validates the nominee and uses a Firestore transaction to create that account's one-time vote lock and increment an aggregate total. The chosen nominee is never stored alongside the voter ID.
+The voting app is a React/Vite site. Firebase Anonymous Authentication gives each browser profile a persistent voting account. In production on Vercel, a same-origin API verifies the Firebase ID token and uses a Firestore transaction to create that account's one-time vote lock and increment an aggregate total. The chosen nominee is never stored alongside the voter ID. Local development uses the Firebase callable function emulator.
 
-The React/Vite app is the only web application in this repository. Firebase Cloud Functions provide the trusted voting and admin operations.
+The React/Vite app is the only web application in this repository. Vercel API routes provide production voting and admin operations; Firebase Cloud Functions support emulator development and optional Firebase Hosting deployments.
 
 ## Local setup
 
@@ -30,7 +30,7 @@ The React/Vite app is the only web application in this repository. Firebase Clou
    Open the Vite URL printed in the terminal (normally `http://localhost:5173`). Local votes and admin sign-ins stay out of production.
 ## Admin access
 
-Students vote without a visible login. Firebase silently creates a persistent anonymous session for the browser. The admin dashboard uses a password verified by a callable Cloud Function; the password is stored as a Firebase Functions secret and is never embedded in the frontend.
+Students vote without a visible login. Firebase silently creates a persistent anonymous session for the browser. The admin dashboard uses a password verified server-side by the Vercel API; the password is stored in a private Vercel environment variable and is never embedded in the frontend. Local emulator development uses a Firebase Functions secret.
 
 1. In production, set `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`, and `FIREBASE_SERVICE_ACCOUNT_B64` as **private Vercel Production environment variables**. `FIREBASE_SERVICE_ACCOUNT_B64` is the base64-encoded Firebase service-account JSON for this project. Never use a `VITE_` prefix for these server-only values or commit the service-account key.
 
@@ -39,7 +39,7 @@ Students vote without a visible login. Firebase silently creates a persistent an
 
 ## Run with Firebase emulators
 
-Follow local setup steps 4–5. Emulator data is separate from production. To use the emulator UI, enable it in `firebase.json` and use the port printed by the Firebase CLI.
+Follow local setup steps 4–5. Emulator data is separate from production. To use the emulator UI, enable it in `firebase.json` and use the port printed by the Firebase CLI. Local vote submissions call the `castVote` emulator.
 
 ## Build and deploy
 
@@ -57,31 +57,31 @@ Follow local setup steps 4–5. Emulator data is separate from production. To us
 
    Use the Web app config from the Firebase project. These `VITE_` values are public client configuration; do not add `ADMIN_PASSWORD`, session secrets, voter secrets, or service-account credentials to Vercel frontend variables. Leave `VITE_USE_FIREBASE_EMULATORS` unset for production.
 3. Before opening the deployed site, in Firebase Console enable Anonymous sign-in and add the Vercel production domain (for example, `your-project.vercel.app`) to Authentication's authorized domains. If App Check is enabled, register the Vercel domain with the configured provider too.
-4. Vercel builds the React frontend and deploys the `api/admin/*` server endpoints. The production admin endpoints use the private Vercel variables described in **Admin access** and the Firebase service-account identity to read aggregate results. The voting endpoint remains a Firebase callable function; deploy it and the restrictive Firestore rules from a Firebase CLI account with project access:
+4. Vercel builds the React frontend and deploys the `api/*` server endpoints. The production vote endpoint verifies the anonymous Firebase ID token, then atomically writes the vote lock and aggregate result using the Firebase service account. The same private service-account variable described in **Admin access** is used by voting and admin endpoints. No Firebase Functions deployment is required for Vercel voting.
 
    ```powershell
-   firebase use school-ballon-d-or
-   firebase deploy --only firestore:rules,functions:castVote
+   git push
    ```
 
-5. Trigger a new Vercel deployment after changing its environment variables. Test `/vote`, `/admin`, refresh/deep links, anonymous voting, and admin results on the Vercel URL. Do not cast test votes against production.
+5. Trigger a new Vercel deployment after changing its environment variables. Test `/vote`, `/admin`, refresh/deep links, and admin results on the Vercel URL. Use Firebase emulators or a staging project to test vote submission; do not cast test votes against production.
 
 ### Deploy everything with Firebase Hosting
 
-Install Firebase CLI if necessary, select the project, build the frontend, then deploy:
+For Firebase Hosting, enable the callable-function vote path when building, select the project, and deploy:
 
 ```powershell
 firebase use school-ballon-d-or
+$env:VITE_USE_FIREBASE_VOTE_FUNCTION = "true"
 npm run build
 firebase deploy --only firestore:rules,functions,hosting
 ```
 
-Firebase Functions deployment requires the project to have billing enabled. Hosting serves `dist/` and rewrites page routes such as `/admin` to the React entry point. Callable voting functions run in `us-central1` with Firebase-managed Admin credentials. For production, enable Firestore TTL on the `adminLoginAttempts.expiresAt` field so expired rate-limit records are automatically removed.
+Firebase Functions deployment requires the project to have billing enabled. Hosting serves `dist/` and rewrites page routes such as `/admin` to the React entry point. Callable voting functions run in `us-central1` with Firebase-managed Admin credentials. Vercel deployments should leave `VITE_USE_FIREBASE_VOTE_FUNCTION` unset so votes use `/api/vote`. For production, enable Firestore TTL on the `adminLoginAttempts.expiresAt` field so expired rate-limit records are automatically removed.
 
 ## Privacy and voting limits
 
 - `devices/{anonymousUid}` contains only a vote lock and server timestamp. A signed-in voter may read only their own lock.
-- `results/{nomineeId}` contains aggregate vote totals. Direct client reads and writes are denied; the vote and admin-results callable functions use the Admin SDK.
+- `results/{nomineeId}` contains aggregate vote totals. Direct client reads and writes are denied; production vote and admin-results API routes use the Admin SDK. The local callable function emulator uses the Admin SDK too.
 - Individual nominee selections are not retained with voter IDs, and the admin dashboard does not display voter IDs.
 - Anonymous Firebase accounts identify a browser profile, not a physical device or student. Clearing browser/app data, using private browsing, or switching browsers can create another account and permit another vote. Managed/verified student identities are needed to guarantee one vote per person.
 
