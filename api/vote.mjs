@@ -1,12 +1,16 @@
+import { getAuth } from "firebase-admin/auth";
+import { FieldValue } from "firebase-admin/firestore";
+import serverAdmin from "../server/admin.js";
+
 const {
   getDb,
   getFirebaseServiceAccount,
   isSameOrigin,
   nomineeIds,
   sendJson,
-} = require("../server/admin");
+} = serverAdmin;
 
-module.exports = async function castVote(request, response) {
+export default async function castVote(request, response) {
   if (request.method !== "POST") {
     response.setHeader("Allow", "POST");
     return sendJson(response, 405, { error: "Method not allowed." });
@@ -28,16 +32,10 @@ module.exports = async function castVote(request, response) {
     return sendJson(response, 400, { error: "Choose a nominee from the official ballot." });
   }
 
-  let failureStage = "firebase-configuration";
   try {
     const serviceAccount = getFirebaseServiceAccount();
-    failureStage = "firestore-initialization";
     const db = getDb(serviceAccount);
-    failureStage = "auth-module-loading";
-    const { getAuth } = await import("firebase-admin/auth");
-    const { FieldValue } = require("firebase-admin/firestore");
     let voter;
-    failureStage = "id-token-verification";
     try {
       voter = await getAuth().verifyIdToken(tokenMatch[1]);
     } catch (error) {
@@ -53,10 +51,8 @@ module.exports = async function castVote(request, response) {
     if (!voter.uid || voter.firebase?.sign_in_provider !== "anonymous") {
       return sendJson(response, 403, { error: "An anonymous voting session is required." });
     }
-
     const deviceRef = db.collection("devices").doc(voter.uid);
     const resultRef = db.collection("results").doc(nomineeId);
-    failureStage = "vote-transaction";
     await db.runTransaction(async (transaction) => {
       const deviceSnapshot = await transaction.get(deviceRef);
       if (deviceSnapshot.exists) {
@@ -87,9 +83,6 @@ module.exports = async function castVote(request, response) {
       return sendJson(response, 409, { error: error.message });
     }
     console.error("Vote endpoint failed.", error);
-    return sendJson(response, 503, {
-      error: "Your vote could not be saved. Please try again.",
-      diagnostic: { stage: failureStage, code: error.code || error.name },
-    });
+    return sendJson(response, 503, { error: "Your vote could not be saved. Please try again." });
   }
-};
+}
