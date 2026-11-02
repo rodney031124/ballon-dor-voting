@@ -34,7 +34,7 @@ module.exports = async function castVote(request, response) {
     failureStage = "firestore-initialization";
     const db = getDb(serviceAccount);
     failureStage = "auth-module-loading";
-    const { getAuth } = require("firebase-admin/auth");
+    const { getAuth } = await import("firebase-admin/auth");
     const { FieldValue } = require("firebase-admin/firestore");
     let voter;
     failureStage = "id-token-verification";
