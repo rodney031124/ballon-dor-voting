@@ -24,35 +24,42 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const missingConfig = Object.entries(firebaseConfig)
+const firebaseEnvironmentNames = {
+  apiKey: "VITE_FIREBASE_API_KEY",
+  authDomain: "VITE_FIREBASE_AUTH_DOMAIN",
+  projectId: "VITE_FIREBASE_PROJECT_ID",
+  storageBucket: "VITE_FIREBASE_STORAGE_BUCKET",
+  messagingSenderId: "VITE_FIREBASE_MESSAGING_SENDER_ID",
+  appId: "VITE_FIREBASE_APP_ID",
+};
+
+export const missingFirebaseConfig = Object.entries(firebaseConfig)
   .filter(([, value]) => !value)
-  .map(([key]) => key);
+  .map(([key]) => firebaseEnvironmentNames[key]);
 
-if (missingConfig.length > 0) {
-  throw new Error(
-    `Missing Firebase configuration: ${missingConfig.join(", ")}. Set the VITE_FIREBASE_* values in .env.`,
-  );
-}
-
-const app = initializeApp(firebaseConfig);
+const app = missingFirebaseConfig.length === 0
+  ? initializeApp(firebaseConfig)
+  : null;
 const emulatorSetting = import.meta.env.VITE_USE_FIREBASE_EMULATORS;
 const useEmulators = emulatorSetting === "true"
   || (emulatorSetting !== "false" && import.meta.env.DEV);
 const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY;
 
-if (!useEmulators && appCheckSiteKey) {
+if (app && !useEmulators && appCheckSiteKey) {
   initializeAppCheck(app, {
     provider: new ReCaptchaV3Provider(appCheckSiteKey),
     isTokenAutoRefreshEnabled: true,
   });
 }
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const functions = getFunctions(app, "us-central1");
-export const authReady = setPersistence(auth, browserLocalPersistence);
+export const auth = app ? getAuth(app) : null;
+export const db = app ? getFirestore(app) : null;
+export const functions = app ? getFunctions(app, "us-central1") : null;
+export const authReady = auth
+  ? setPersistence(auth, browserLocalPersistence)
+  : Promise.resolve();
 
-if (useEmulators) {
+if (app && useEmulators) {
   const emulatorHost = window.location.hostname || "127.0.0.1";
   connectAuthEmulator(auth, `http://${emulatorHost}:9099`, {
     disableWarnings: true,
