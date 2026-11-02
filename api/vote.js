@@ -67,12 +67,12 @@ async function verifyAnonymousIdToken(token, projectId) {
     || claims.exp <= now
     || !Number.isSafeInteger(claims.iat)
     || claims.iat > now + 300
-    || claims.firebase?.sign_in_provider !== "anonymous"
+    || typeof claims.firebase?.sign_in_provider !== "string"
   ) {
     return null;
   }
 
-  return { uid: claims.sub };
+  return { uid: claims.sub, signInProvider: claims.firebase.sign_in_provider };
 }
 
 module.exports = async function castVote(request, response) {
@@ -103,6 +103,9 @@ module.exports = async function castVote(request, response) {
     const voter = await verifyAnonymousIdToken(tokenMatch[1], serviceAccount.project_id);
     if (!voter) {
       return sendJson(response, 401, { error: "Your voting session has expired. Reload the ballot." });
+    }
+    if (voter.signInProvider !== "anonymous") {
+      return sendJson(response, 403, { error: "An anonymous voting session is required." });
     }
 
     const deviceRef = db.collection("devices").doc(voter.uid);
