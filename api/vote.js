@@ -1,5 +1,3 @@
-const { getAuth } = require("firebase-admin/auth");
-const { FieldValue } = require("firebase-admin/firestore");
 const {
   getDb,
   getFirebaseServiceAccount,
@@ -33,6 +31,8 @@ module.exports = async function castVote(request, response) {
   try {
     const serviceAccount = getFirebaseServiceAccount();
     const db = getDb(serviceAccount);
+    const { getAuth } = require("firebase-admin/auth");
+    const { FieldValue } = require("firebase-admin/firestore");
     let voter;
     try {
       voter = await getAuth().verifyIdToken(tokenMatch[1]);
