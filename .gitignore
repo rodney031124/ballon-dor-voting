@@ -13,3 +13,4 @@ firebase-service-account.json
 firebase-debug.log
 firestore-debug.log
 functions/.secret.local
+.vercel
