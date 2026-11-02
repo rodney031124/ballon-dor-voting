@@ -1,0 +1,10 @@
+node_modules
+.git
+.qodo
+.env
+.env.*
+!.env.example
+data
+serviceAccount*.json
+firebase-service-account.json
+npm-debug.log

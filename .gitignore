@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.firebase/
+data/votes.json
+data/votes.previous-*.json
+data/voter-secret
+data/*.tmp
+.env
+.env.*
+!.env.example
+serviceAccount*.json
+firebase-service-account.json
+firebase-debug.log
+firestore-debug.log
+functions/.secret.local

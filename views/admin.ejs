@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0c0c0b">
+    <title>Live Results — Ballon d'Or 2026</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body class="app-page">
+    <header class="site-header">
+      <a class="wordmark" href="/admin/dashboard"><span class="wordmark-mark">B</span> BALLON D'OR <span class="wordmark-year">2026</span></a>
+      <div class="header-right"><span class="admin-badge">ADMINISTRATOR</span><form action="/admin/sign-out" method="post"><button class="text-button" type="submit">Sign out <span aria-hidden="true">↗</span></button></form></div>
+    </header>
+    <main class="admin-main">
+      <div class="admin-heading">
+        <div><p class="eyebrow"><span class="live-dot"></span> LIVE FROM THE BALLOT BOX</p><h1>The people's <span>choice.</span></h1><p class="heading-copy">Every voice, counted. No names attached.</p></div>
+        <div class="total-card"><span>TOTAL DEVICES VOTED</span><strong id="total-votes"><%= totalVotes.toLocaleString() %></strong><small id="device-count"><%= voterCount.toLocaleString() %> UNIQUE DEVICES</small></div>
+      </div>
+      <section class="results-card">
+        <div class="results-title"><div><p class="eyebrow">THE LEADERBOARD</p><h2>Vote count</h2></div><span class="live-status" id="live-status"><i></i> CONNECTING</span></div>
+        <div class="results-table-wrap"><table class="results-table">
+          <thead><tr><th>POSITION</th><th>NOMINEE</th><th>VOTES</th><th>SHARE</th></tr></thead>
+          <tbody id="results-body">
+            <% results.forEach((nominee, index) => { %>
+              <tr data-id="<%= nominee.id %>" data-votes="<%= nominee.votes %>">
+                <td><span class="rank-number <%= index === 0 && nominee.votes > 0 ? "rank-first" : "" %>"><%= String(index + 1).padStart(2, "0") %></span></td>
+                <td><span class="result-player"><span class="player-avatar result-avatar avatar-<%= nominee.color %>">
+                  <% if (nominee.image) { %>
+                    <img src="<%= nominee.image %>" alt="" loading="lazy" decoding="async">
+                  <% } else { %>
+                    <span><%= nominee.initials %></span>
+                  <% } %>
+                </span><strong><%= nominee.name %></strong></span></td>
+                <td class="count-cell"><%= nominee.votes.toLocaleString() %></td>
+                <td><progress class="share-track" max="100" value="<%= totalVotes ? Math.round(nominee.votes / totalVotes * 100) : 0 %>"></progress><span class="share-value"><%= totalVotes ? Math.round(nominee.votes / totalVotes * 100) : 0 %>%</span></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table></div>
+        <div class="results-foot"><span>Updates live from Firestore</span><span>Vote totals only; device IDs are not shown</span></div>
+      </section>
+      <p class="shortlist-disclaimer">This fan ballot stores vote totals separately from one-way device hashes. Individual selections are never displayed or retained.</p>
+    </main>
+    <footer class="site-footer"><span>PRIVATE ADMIN DASHBOARD</span><a href="/vote">BALLOT</a><span>© 2026</span></footer>
+    <script src="/admin.js" defer></script>
+  </body>
+</html>

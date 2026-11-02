@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0c0c0b">
+    <title>Admin Access — Ballon d'Or 2026</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body class="login-page">
+    <main class="admin-login-wrap">
+      <a class="wordmark" href="/"><span class="wordmark-mark">B</span> BALLON D'OR <span class="wordmark-year">2026</span></a>
+      <section class="admin-login-card">
+        <p class="eyebrow">PRIVATE AREA</p>
+        <h1>Admin <span>access.</span></h1>
+        <p class="login-intro">Sign in to view the live, anonymous vote totals.</p>
+        <% if (error) { %>
+          <p class="form-error" role="alert"><%= error %></p>
+        <% } %>
+        <% if (configured) { %>
+          <form action="/admin/sign-in" method="post" class="login-form">
+            <label for="password">Admin password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <button type="submit" class="button button-gold">Open dashboard <span aria-hidden="true">↗</span></button>
+          </form>
+        <% } else { %>
+          <div class="setup-note"><strong>Not configured yet.</strong><p>Set the <code>ADMIN_PASSWORD</code> environment variable, then restart the app to enable the dashboard.</p></div>
+        <% } %>
+        <a class="back-link" href="/">← Back to the ballot</a>
+      </section>
+      <p class="admin-footnote">Voter identities are not shown in this dashboard.</p>
+    </main>
+  </body>
+</html>
