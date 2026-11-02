@@ -2,12 +2,12 @@
 
 The voting app is a React/Vite site. It can be hosted on Vercel or Firebase Hosting. Firebase Anonymous Authentication gives each browser profile a persistent voting account. A callable Cloud Function validates the nominee and uses a Firestore transaction to create that account's one-time vote lock and increment an aggregate total. The chosen nominee is never stored alongside the voter ID.
 
-The previous Express app, EJS templates, and static assets are retained as a fallback/reference. `npm start` now starts the React app; `npm run start:server` starts the legacy Express app, which still requires its server credentials and environment variables.
+The React/Vite app is the only web application in this repository. Firebase Cloud Functions provide the trusted voting and admin operations.
 
 ## Local setup
 
 1. In Firebase Console for `school-ballon-d-or`, enable **Anonymous** sign-in under Authentication, create the Firestore database, and add `localhost` to Authentication's authorized domains if needed.
-2. Copy `.env.example` to `.env` and set the Firebase web app configuration. Leave `VITE_USE_FIREBASE_EMULATORS` blank for local development; Vite uses the local emulators by default. Set it to `false` only when intentionally connecting a development server to the live Firebase project. Production builds default to the live Firebase services unless this variable is explicitly set to `true`. Firebase App Check with reCAPTCHA v3 is optional; if enabled, set `VITE_FIREBASE_APPCHECK_SITE_KEY` to its site key. The Firebase web API key and App Check site key are public client configuration, not secrets. Never put a service-account JSON file or admin password in the React app.
+2. Copy `.env.example` to `.env.development.local` and set the Firebase web app configuration. Leave `VITE_USE_FIREBASE_EMULATORS` blank for local development; Vite uses the local emulators by default. Set it to `false` only when intentionally connecting a development server to the live Firebase project. Production builds default to the live Firebase services unless this variable is explicitly set to `true`. Firebase App Check with reCAPTCHA v3 is optional; if enabled, set `VITE_FIREBASE_APPCHECK_SITE_KEY` to its site key. The Firebase web API key and App Check site key are public client configuration, not secrets. Never put a service-account JSON file or admin password in the React app.
 3. Install the frontend and Cloud Function dependencies:
 
    ```powershell
@@ -38,7 +38,7 @@ Students vote without a visible login. Firebase silently creates a persistent an
    firebase functions:secrets:set ADMIN_PASSWORD
    ```
 
-   Enter the password at the CLI prompt. The root `.env` value is not automatically used by deployed Functions. Do not put the password in frontend variables, source files, or chat. For local emulator testing, copy `functions/.secret.local.example` to `functions/.secret.local` and replace the example value with a long random password.
+   Enter the password at the CLI prompt. Vite environment files are not used by deployed Functions. Do not put the password in frontend variables, source files, or chat. For local emulator testing, copy `functions/.secret.local.example` to `functions/.secret.local` and replace the example value with a long random password.
 2. Open `/admin` and enter the password. The function checks it server-side and returns a short-lived HMAC-signed admin session, held only in browser memory. A callable function checks that session and returns aggregate totals; the browser is never granted direct results access. Failed sign-in attempts are limited per source IP. This avoids Firebase custom-token signing and does not require the service account Token Creator role.
 
 ## Run with Firebase emulators
@@ -92,6 +92,6 @@ Firebase Functions deployment requires the project to have billing enabled. Host
 
 The two nominees without supplied images, Government and Thoni (Respect), display initials. The supplied images for the other nominees are reused from `public/`.
 
-## Legacy server secrets
+## Secret hygiene
 
-The old Express app uses `ADMIN_PASSWORD`, `SESSION_SECRET`, `VOTER_HASH_SECRET`, and Firebase Admin credentials from `.env`; the React app and Cloud Function do not use them. The values previously pasted into chat should be rotated before using the legacy server. Keep `.env` and all service-account files out of version control.
+Any administrator password previously shared in chat must be considered compromised. Choose a new random password before enabling production admin access, and store it only in Firebase Functions Secret Manager. Keep local emulator secrets and service-account credentials out of version control.
