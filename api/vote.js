@@ -37,7 +37,10 @@ module.exports = async function castVote(request, response) {
     try {
       voter = await getAuth().verifyIdToken(tokenMatch[1]);
     } catch (error) {
-      if (["auth/argument-error", "auth/invalid-id-token", "auth/id-token-expired"].includes(error.code)) {
+      const tokenRejected = typeof error.code === "string"
+        && error.code.startsWith("auth/")
+        && !["auth/internal-error", "auth/invalid-credential", "auth/network-request-failed"].includes(error.code);
+      if (tokenRejected) {
         return sendJson(response, 401, { error: "Your voting session has expired. Reload the ballot." });
       }
       throw error;
